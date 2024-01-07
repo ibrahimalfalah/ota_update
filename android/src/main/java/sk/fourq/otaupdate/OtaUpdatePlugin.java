@@ -41,6 +41,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -48,9 +49,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 /**
@@ -124,6 +125,54 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         Log.d(TAG, "onDetachedFromActivity");
     }
 
+    private void installTrustManager() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{new MyTrustManager()};
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            client = new OkHttpClient.Builder()
+                    .sslSocketFactory(sc.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                    .addNetworkInterceptor(new Interceptor() {
+                        @NotNull
+                        @Override
+                        public Response intercept(@NotNull Chain chain) throws IOException {
+                            Response originalResponse = chain.proceed(chain.request());
+                            return originalResponse.newBuilder()
+                                    .body(new ProgressResponseBody(originalResponse.body(), OtaUpdatePlugin.this))
+                                    .build();
+                        }
+                    })
+                    .build();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static class MyTrustManager implements X509TrustManager {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Check the client certificate if needed
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Check the server certificate chain
+            try {
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init((KeyStore) null);
+                X509TrustManager defaultTrustManager = (X509TrustManager) tmf.getTrustManagers()[0];
+                defaultTrustManager.checkServerTrusted(chain, authType);
+            } catch (Exception e) {
+                throw new CertificateException("Failed to validate the certificate chain", e);
+            }
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+        }
+    }
+
     //METHOD LISTENER
     @Override
     public void onMethodCall(MethodCall call, Result result) {
@@ -142,43 +191,12 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         }
     }
 
-    private void installTrustManager() {
-        try {
-            TrustManager[] trustAllCerts = new TrustManager[]{new MyTrustManager()};
-
-            // Install the all-trusting trust manager
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static class MyTrustManager implements X509TrustManager {
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            // Do nothing (accept all clients)
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            // Do nothing (accept all servers)
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
-    }
-
     //STREAM LISTENER
     @Override
     public void onListen(Object arguments, EventChannel.EventSink events) {
         if (progressSink != null) {
             progressSink.error("" + OtaStatus.ALREADY_RUNNING_ERROR.ordinal(), "Method call was cancelled. One method call is already running!", null);
         }
-        installTrustManager();
         Log.d(TAG, "STREAM OPENED");
         progressSink = events;
         //READ ARGUMENTS FROM CALL
@@ -246,8 +264,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
             return false;
         }
     }
-
-
 
     /**
      * Execute download and start installation. This method is called either from onListen method
@@ -324,7 +340,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
             currentCall = null;
         }
     }
-
 
     /**
      * Download has been completed
@@ -452,6 +467,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
                 }
             }
         };
+        installTrustManager();
         final EventChannel progressChannel = new EventChannel(messanger, STREAM_CHANNEL);
         progressChannel.setStreamHandler(this);
 
@@ -471,6 +487,8 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
                 })
                 .build();
     }
+
+
 
     @Override
     public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {
