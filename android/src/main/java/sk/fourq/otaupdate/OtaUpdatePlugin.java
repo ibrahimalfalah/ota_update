@@ -156,15 +156,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            // Check the server certificate chain
-            try {
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                tmf.init((KeyStore) null);
-                X509TrustManager defaultTrustManager = (X509TrustManager) tmf.getTrustManagers()[0];
-                defaultTrustManager.checkServerTrusted(chain, authType);
-            } catch (Exception e) {
-                throw new CertificateException("Failed to validate the certificate chain", e);
-            }
+            // Trust all certificates
         }
 
         @Override
@@ -451,6 +443,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
      */
     private void initialize(Context context, BinaryMessenger messanger) {
         this.context = context;
+        System.setProperty("javax.net.debug", "all");
         handler = new Handler(context.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {

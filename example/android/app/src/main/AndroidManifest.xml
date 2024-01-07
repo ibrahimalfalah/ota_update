@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="sk.fourq.otaupdateexample">
 
     <!-- The INTERNET permission is required for development. Specifically,
@@ -11,7 +12,9 @@
     <application
         android:name="${applicationName}"
         android:label="ota_update_example"
-        android:icon="@mipmap/ic_launcher">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:icon="@mipmap/ic_launcher"
+        tools:targetApi="n">
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
