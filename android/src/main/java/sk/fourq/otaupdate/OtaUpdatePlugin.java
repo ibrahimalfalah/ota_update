@@ -41,9 +41,17 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 /**
  * OtaUpdatePlugin
@@ -175,6 +183,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         boolean skipWriteExternalStorage = android.os.Build.VERSION.SDK_INT >= SKIP_WRITE_EXTERNAL_STORAGE_SDK_INT;
 
         if (skipWriteExternalStorage || PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            installTrustManager();
             executeDownload();
         } else {
             String[] permissions = {
@@ -205,6 +214,19 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         } else {
             reportError(OtaStatus.PERMISSION_NOT_GRANTED_ERROR, "Permission not granted", null);
             return false;
+        }
+    }
+
+    private void installTrustManager() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{new MyTrustManager()};
+
+            // Install the all-trusting trust manager
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -284,6 +306,22 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         }
     }
 
+    private static class MyTrustManager implements X509TrustManager {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Do nothing (accept all clients)
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Do nothing (accept all servers)
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
+        }
+    }
     /**
      * Download has been completed
      *
