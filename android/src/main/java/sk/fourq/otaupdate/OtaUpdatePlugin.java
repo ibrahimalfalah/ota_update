@@ -128,7 +128,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
     @Override
     public void onMethodCall(MethodCall call, Result result) {
         Log.d(TAG, "onMethodCall "+call.method);
-        installTrustManager();
         if (call.method.equals("getAbi")) {
             result.success(Build.SUPPORTED_ABIS[0]);
         } else if (call.method.equals("cancel")) {
@@ -179,6 +178,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         if (progressSink != null) {
             progressSink.error("" + OtaStatus.ALREADY_RUNNING_ERROR.ordinal(), "Method call was cancelled. One method call is already running!", null);
         }
+        installTrustManager();
         Log.d(TAG, "STREAM OPENED");
         progressSink = events;
         //READ ARGUMENTS FROM CALL
@@ -255,7 +255,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
      */
     private void executeDownload() {
         try {
-            installTrustManager();
             if (currentCall != null) {
                 reportError(OtaStatus.ALREADY_RUNNING_ERROR, "Another download (call) is already running", null);
                 return;
