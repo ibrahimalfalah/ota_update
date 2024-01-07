@@ -93,6 +93,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
     @Override
     public void onAttachedToEngine(FlutterPluginBinding binding) {
         Log.d(TAG, "onAttachedToEngine");
+        installTrustManager();
         initialize(binding.getApplicationContext(), binding.getBinaryMessenger());
     }
 
