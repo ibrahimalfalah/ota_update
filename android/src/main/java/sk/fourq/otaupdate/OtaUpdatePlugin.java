@@ -93,7 +93,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
     @Override
     public void onAttachedToEngine(FlutterPluginBinding binding) {
         Log.d(TAG, "onAttachedToEngine");
-        installTrustManager();
         initialize(binding.getApplicationContext(), binding.getBinaryMessenger());
     }
 
@@ -129,6 +128,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
     @Override
     public void onMethodCall(MethodCall call, Result result) {
         Log.d(TAG, "onMethodCall "+call.method);
+        installTrustManager();
         if (call.method.equals("getAbi")) {
             result.success(Build.SUPPORTED_ABIS[0]);
         } else if (call.method.equals("cancel")) {
@@ -140,6 +140,36 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
             result.success(null);
         } else {
             result.notImplemented();
+        }
+    }
+
+    private void installTrustManager() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{new MyTrustManager()};
+
+            // Install the all-trusting trust manager
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static class MyTrustManager implements X509TrustManager {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Do nothing (accept all clients)
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            // Do nothing (accept all servers)
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[0];
         }
     }
 
@@ -217,18 +247,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         }
     }
 
-    private void installTrustManager() {
-        try {
-            TrustManager[] trustAllCerts = new TrustManager[]{new MyTrustManager()};
 
-            // Install the all-trusting trust manager
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     /**
      * Execute download and start installation. This method is called either from onListen method
@@ -307,22 +326,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         }
     }
 
-    private static class MyTrustManager implements X509TrustManager {
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            // Do nothing (accept all clients)
-        }
 
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            // Do nothing (accept all servers)
-        }
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return new X509Certificate[0];
-        }
-    }
     /**
      * Download has been completed
      *
