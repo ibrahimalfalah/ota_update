@@ -183,7 +183,6 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
         boolean skipWriteExternalStorage = android.os.Build.VERSION.SDK_INT >= SKIP_WRITE_EXTERNAL_STORAGE_SDK_INT;
 
         if (skipWriteExternalStorage || PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            installTrustManager();
             executeDownload();
         } else {
             String[] permissions = {
@@ -236,6 +235,7 @@ public class OtaUpdatePlugin implements FlutterPlugin, ActivityAware, EventChann
      */
     private void executeDownload() {
         try {
+            installTrustManager();
             if (currentCall != null) {
                 reportError(OtaStatus.ALREADY_RUNNING_ERROR, "Another download (call) is already running", null);
                 return;
